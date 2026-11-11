@@ -23,7 +23,7 @@
   },
   "scripts": {
     "start": "node dist/main.js",
-    "start:dev": "tsx watch src/main.ts",
+    "start:dev": "nest start --watch",
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
     "typecheck": "tsc --noEmit",
@@ -56,5 +56,11 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.2",
     "vitest": "^3.2.7"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.1": true,
+    "@scarf/scarf@1.4.0": true,
+    "esbuild@0.28.2": true,
+    "prisma@7.10.1": true
   }
 }

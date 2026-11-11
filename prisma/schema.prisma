@@ -6,3 +6,120 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum TipoUsuario {
+  USUARIO
+  ADMIN
+}
+
+enum StatusEvento {
+  RASCUNHO
+  PUBLICADO
+  CANCELADO
+  REALIZADO
+}
+model Usuario {
+  id    String @id @default(uuid()) @db.Uuid  
+  nome  String
+  email String @unique
+  senha String
+  cargo TipoUsuario @default(USUARIO)
+
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
+  atualizadoEm DateTime? @updatedAt @db.Timestamptz(3)
+
+  eventosCriados Evento[] @relation("CriadorEvento")
+  favoritos Favorito[]
+  comentarios Comentario[]
+  codigosResetSenha CodigoResetSenha[]
+}
+model Evento {
+  id String @id @default(uuid()) @db.Uuid
+  titulo String
+  descricao String
+  local String?
+  imagemUrl String?
+  inicioEm DateTime @db.Timestamptz(3)
+  finalEm DateTime @db.Timestamptz(3)
+  registroUrl String?
+  status StatusEvento @default(RASCUNHO)
+
+  instituicaoId String @db.Uuid
+  categoriaId String? @db.Uuid
+  criadoPorId String @db.Uuid
+
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
+  atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
+
+  instituicao Instituicao @relation(fields: [instituicaoId], references: [id])
+  categoria Categoria? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  criadoPor Usuario @relation("CriadorEvento", fields: [criadoPorId], references: [id])
+
+  favoritos Favorito[]
+  comentarios Comentario[]
+
+  @@index([status, inicioEm])
+  @@index([instituicaoId])
+  @@index([categoriaId])
+}
+
+model Instituicao {
+  id String @id @default(uuid()) @db.Uuid
+  nome String
+  slug String @unique
+  descricao String?
+  logoUrl String?
+
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
+  atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
+
+  eventos Evento[]
+}
+
+model Categoria {
+  id String @id @default(uuid()) @db.Uuid
+  nome String
+  slug String @unique
+
+  eventos Evento[]
+}
+
+model Favorito {
+  id String @id @default(uuid()) @db.Uuid
+  usuarioId String @db.Uuid 
+  eventoId String @db.Uuid 
+
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+}
+
+model Comentario {
+  id String @id @default(uuid()) @db.Uuid
+  conteudo String
+  usuarioId String @db.Uuid
+  eventoId String @db.Uuid
+
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
+  atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+
+  @@index([eventoId, criadoEm])
+}
+
+model CodigoResetSenha {
+  id String @id @default(uuid()) @db.Uuid
+  codigo String
+  expiraEm DateTime @db.Timestamptz(3)
+  usadoEm DateTime? @db.Timestamptz(3)
+
+  usuarioId String @db.Uuid
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
+  
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, expiraEm])
+}
