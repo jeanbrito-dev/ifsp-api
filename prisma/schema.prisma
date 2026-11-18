@@ -24,6 +24,7 @@ model Usuario {
   email String @unique
   senha String
   cargo TipoUsuario @default(USUARIO)
+  instituicoesSeguidas InstituicaoSeguidor[]
 
   criadoEm DateTime @default(now()) @db.Timestamptz(3)
   atualizadoEm DateTime? @updatedAt @db.Timestamptz(3)
@@ -69,11 +70,26 @@ model Instituicao {
   slug String @unique
   descricao String?
   logoUrl String?
+  seguidores InstituicaoSeguidor[]
 
   criadoEm DateTime @default(now()) @db.Timestamptz(3)
   atualizadoEm DateTime @updatedAt @db.Timestamptz(3)
 
   eventos Evento[]
+}
+
+model InstituicaoSeguidor {
+  id            String   @id @default(uuid()) @db.Uuid
+  usuarioId     String   @db.Uuid
+  instituicaoId String   @db.Uuid
+
+  criadoEm DateTime @default(now()) @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  instituicao Instituicao @relation(fields: [instituicaoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, instituicaoId])
+  @@index([instituicaoId, criadoEm])
 }
 
 model Categoria {
