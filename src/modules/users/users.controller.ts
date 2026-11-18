@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type AuthUser } from './decorators/current-user.decorator.js';
+import { CurrentUserId } from './decorators/current-user-id.decorator.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -21,6 +22,15 @@ import { UsersService } from './users.service.js';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('me')
+  @ApiOperation({ summary: 'Consulta o perfil do usuário autenticado' })
+  @ApiResponse({ status: 200, description: 'Perfil do usuário, sem dados sensíveis.' })
+  @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
+  @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
+  getProfile(@CurrentUserId() userId: string) {
+    return this.usersService.getProfile(userId);
+  }
 
   @Post()
   @ApiOperation({ summary: 'Cria um usuário (ADMIN)' })

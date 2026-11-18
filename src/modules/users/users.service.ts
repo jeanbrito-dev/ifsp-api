@@ -15,7 +15,7 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 
 const SALT_ROUNDS = 10;
 
-const USER_SELECT = {
+const PROFILE_SELECT = {
   id: true,
   nome: true,
   email: true,
@@ -37,6 +37,20 @@ function hasPrismaCode(error: unknown, code: string): boolean {
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Já existia na develop
+  async getProfile(userId: string) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      select: PROFILE_SELECT,
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    return user;
+  }
+
   async create(dto: CreateUserDto, actor: AuthUser) {
     this.assertAdmin(actor);
 
@@ -45,7 +59,7 @@ export class UsersService {
     try {
       return await this.prisma.usuario.create({
         data: { nome: dto.nome, email: dto.email, senha, cargo: dto.cargo },
-        select: USER_SELECT,
+        select: PROFILE_SELECT,
       });
     } catch (error) {
       if (hasPrismaCode(error, 'P2002')) {
@@ -72,7 +86,7 @@ export class UsersService {
     const [data, total] = await Promise.all([
       this.prisma.usuario.findMany({
         where,
-        select: USER_SELECT,
+        select: PROFILE_SELECT,
         orderBy: { nome: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -88,17 +102,7 @@ export class UsersService {
 
   async findOne(id: string, actor: AuthUser) {
     this.assertAdmin(actor);
-
-    const user = await this.prisma.usuario.findUnique({
-      where: { id },
-      select: USER_SELECT,
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado.');
-    }
-
-    return user;
+    return this.getProfile(id);
   }
 
   async update(id: string, dto: UpdateUserDto, actor: AuthUser) {
@@ -120,7 +124,7 @@ export class UsersService {
       return await this.prisma.usuario.update({
         where: { id },
         data: { nome: dto.nome, email: dto.email, cargo: dto.cargo },
-        select: USER_SELECT,
+        select: PROFILE_SELECT,
       });
     } catch (error) {
       if (hasPrismaCode(error, 'P2002')) {
