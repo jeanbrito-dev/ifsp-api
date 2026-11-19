@@ -32,6 +32,7 @@ model Usuario {
   favoritos Favorito[]
   comentarios Comentario[]
   codigosResetSenha CodigoResetSenha[]
+  curtidas Curtida[]
 }
 model Evento {
   id String @id @default(uuid()) @db.Uuid
@@ -57,6 +58,7 @@ model Evento {
 
   favoritos Favorito[]
   comentarios Comentario[]
+  curtidas Curtida[]
 
   @@index([status, inicioEm])
   @@index([instituicaoId])
@@ -122,4 +124,16 @@ model CodigoResetSenha {
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId, expiraEm])
+}
+model Curtida {
+  id        String   @id @default(uuid()) @db.Uuid
+  usuarioId String   @db.Uuid
+  eventoId  String   @db.Uuid
+  criadoEm  DateTime @default(now()) @db.Timestamptz(3)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  evento  Evento  @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, eventoId])
+  @@index([eventoId])
 }
