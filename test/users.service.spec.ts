@@ -4,13 +4,14 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { hash } from 'bcrypt';
 import { describe, expect, it, vi } from 'vitest';
 import { UsersService } from '../src/modules/users/users.service.js';
 
 const admin = { id: 'admin-id', cargo: 'ADMIN' } as const;
 const common = { id: 'user-id', cargo: 'USUARIO' } as const;
 
-function createService(mocks: Record<string, ReturnType<typeof vi.fn>> = {}) {
+function createService() {
   const usuario = {
     create: vi.fn(),
     findMany: vi.fn(),
@@ -18,73 +19,31 @@ function createService(mocks: Record<string, ReturnType<typeof vi.fn>> = {}) {
     findUnique: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
-    ...mocks,
   };
   return { service: new UsersService({ usuario } as never), usuario };
 }
 
-function createProfileService(found: unknown) {
-  const findUnique = vi.fn().mockResolvedValue(found);
-  const prisma = { usuario: { findUnique } };
-  return { service: new UsersService(prisma as never), findUnique };
-}
-
 const newUser = { nome: 'Ana', email: 'ana@ifsp.edu.br', senha: 'Senha@1234' };
 
-describe('UsersService.getProfile', () => {
-  it('retorna o perfil do usuário', async () => {
-    const profile = { id: 'abc', nome: 'Ana', email: 'ana@ifsp.edu.br', cargo: 'USUARIO' };
-    const { service } = createProfileService(profile);
-
-    await expect(service.getProfile('abc')).resolves.toEqual(profile);
-  });
-
-  it('nunca seleciona a senha', async () => {
-    const { service, findUnique } = createProfileService({ id: 'abc' });
-
-    await service.getProfile('abc');
-
-    expect(findUnique).toHaveBeenCalledWith({
-      where: { id: 'abc' },
-      select: expect.not.objectContaining({ senha: true }),
-    });
-  });
-
-  it('lança NotFoundException quando o usuário não existe', async () => {
-    const { service } = createProfileService(null);
-
-    await expect(service.getProfile('inexistente')).rejects.toBeInstanceOf(NotFoundException);
-  });
-});
-
 describe('UsersService.create', () => {
-  it('salva a senha criptografada e nunca a retorna', async () => {
+  it('salva a senha criptografada, sem cargo, e nunca a retorna', async () => {
     const { service, usuario } = createService();
     usuario.create.mockResolvedValue({ id: '1', nome: 'Ana' });
 
-    await service.create(newUser, admin);
+    await service.create(newUser);
 
-    expect(usuario.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        email: 'ana@ifsp.edu.br',
-        senha: expect.stringMatching(/^\$2[aby]\$/),
-      }),
-      select: expect.not.objectContaining({ senha: true }),
-    });
+    const args = usuario.create.mock.calls[0][0];
+    expect(args.data.senha).toMatch(/^\$2[aby]\$/);
+    expect(args.data.senha).not.toBe(newUser.senha);
+    expect(args.data).not.toHaveProperty('cargo');
+    expect(args.select).not.toHaveProperty('senha');
   });
 
   it('lança ConflictException quando o e-mail já existe', async () => {
     const { service, usuario } = createService();
     usuario.create.mockRejectedValue({ code: 'P2002' });
 
-    await expect(service.create(newUser, admin)).rejects.toBeInstanceOf(ConflictException);
-  });
-
-  it('bloqueia quem não é ADMIN', async () => {
-    const { service, usuario } = createService();
-
-    await expect(service.create(newUser, common)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(usuario.create).not.toHaveBeenCalled();
+    await expect(service.create(newUser)).rejects.toBeInstanceOf(ConflictException);
   });
 });
 
@@ -100,9 +59,7 @@ describe('UsersService.findAll', () => {
       data: [{ id: '1' }],
       meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
     });
-    expect(usuario.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ select: expect.not.objectContaining({ senha: true }) }),
-    );
+    expect(usuario.findMany.mock.calls[0][0].select).not.toHaveProperty('senha');
   });
 
   it('bloqueia quem não é ADMIN', async () => {
@@ -115,15 +72,12 @@ describe('UsersService.findAll', () => {
 });
 
 describe('UsersService.findOne', () => {
-  it('retorna o usuário pelo ID', async () => {
+  it('retorna o usuário pelo ID sem selecionar a senha', async () => {
     const { service, usuario } = createService();
     usuario.findUnique.mockResolvedValue({ id: '1', nome: 'Ana' });
 
     await expect(service.findOne('1', admin)).resolves.toEqual({ id: '1', nome: 'Ana' });
-    expect(usuario.findUnique).toHaveBeenCalledWith({
-      where: { id: '1' },
-      select: expect.not.objectContaining({ senha: true }),
-    });
+    expect(usuario.findUnique.mock.calls[0][0].select).not.toHaveProperty('senha');
   });
 
   it('lança NotFoundException quando não existe', async () => {
@@ -132,10 +86,16 @@ describe('UsersService.findOne', () => {
 
     await expect(service.findOne('x', admin)).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('bloqueia quem não é ADMIN', async () => {
+    const { service } = createService();
+
+    await expect(service.findOne('1', common)).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });
 
 describe('UsersService.update', () => {
-  it('permite ao usuário alterar o próprio nome', async () => {
+  it('permite ao usuário alterar a própria conta', async () => {
     const { service, usuario } = createService();
     usuario.update.mockResolvedValue({ id: common.id, nome: 'Novo' });
 
@@ -143,6 +103,7 @@ describe('UsersService.update', () => {
       id: common.id,
       nome: 'Novo',
     });
+    expect(usuario.update.mock.calls[0][0].data).not.toHaveProperty('cargo');
   });
 
   it('impede alterar a conta de outro usuário', async () => {
@@ -154,23 +115,13 @@ describe('UsersService.update', () => {
     expect(usuario.update).not.toHaveBeenCalled();
   });
 
-  it('impede usuário comum de alterar o cargo', async () => {
-    const { service } = createService();
+  it('impede até o ADMIN de alterar a conta de outro usuário', async () => {
+    const { service, usuario } = createService();
 
-    await expect(service.update(common.id, { cargo: 'ADMIN' }, common)).rejects.toBeInstanceOf(
+    await expect(service.update('outro-id', { nome: 'X' }, admin)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
-  });
-
-  it('permite ao ADMIN alterar o cargo de outro usuário', async () => {
-    const { service, usuario } = createService();
-    usuario.update.mockResolvedValue({ id: 'outro-id', cargo: 'ADMIN' });
-
-    await service.update('outro-id', { cargo: 'ADMIN' }, admin);
-
-    expect(usuario.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'outro-id' } }),
-    );
+    expect(usuario.update).not.toHaveBeenCalled();
   });
 
   it('rejeita requisição sem nenhum campo', async () => {
@@ -192,34 +143,99 @@ describe('UsersService.update', () => {
     const { service, usuario } = createService();
     usuario.update.mockRejectedValue({ code: 'P2025' });
 
-    await expect(service.update('id-x', { nome: 'Ana' }, admin)).rejects.toBeInstanceOf(
+    await expect(service.update(common.id, { nome: 'Ana' }, common)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
 });
 
+describe('UsersService.update (senha)', () => {
+  it('altera a senha quando a senha atual está correta', async () => {
+    const { service, usuario } = createService();
+    usuario.findUnique.mockResolvedValue({ senha: await hash('SenhaAtual@1', 4) });
+    usuario.update.mockResolvedValue({ id: common.id });
+
+    await service.update(common.id, { senhaAtual: 'SenhaAtual@1', senha: 'SenhaNova@1' }, common);
+
+    const args = usuario.update.mock.calls[0][0];
+    expect(args.data.senha).toMatch(/^\$2[aby]\$/);
+    expect(args.data.senha).not.toBe('SenhaNova@1');
+    expect(args.select).not.toHaveProperty('senha');
+  });
+
+  it('rejeita quando a senha atual está incorreta', async () => {
+    const { service, usuario } = createService();
+    usuario.findUnique.mockResolvedValue({ senha: await hash('SenhaAtual@1', 4) });
+
+    await expect(
+      service.update(common.id, { senhaAtual: 'Errada@123', senha: 'SenhaNova@1' }, common),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(usuario.update).not.toHaveBeenCalled();
+  });
+
+  it('exige a senha atual para trocar a senha', async () => {
+    const { service, usuario } = createService();
+
+    await expect(
+      service.update(common.id, { senha: 'SenhaNova@1' }, common),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(usuario.update).not.toHaveBeenCalled();
+  });
+
+  it('rejeita nova senha igual à atual', async () => {
+    const { service, usuario } = createService();
+    usuario.findUnique.mockResolvedValue({ senha: await hash('SenhaAtual@1', 4) });
+
+    await expect(
+      service.update(common.id, { senhaAtual: 'SenhaAtual@1', senha: 'SenhaAtual@1' }, common),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(usuario.update).not.toHaveBeenCalled();
+  });
+
+  it('lança NotFoundException quando o usuário não existe', async () => {
+    const { service, usuario } = createService();
+    usuario.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.update(common.id, { senhaAtual: 'SenhaAtual@1', senha: 'SenhaNova@1' }, common),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('impede alterar a senha de outro usuário', async () => {
+    const { service, usuario } = createService();
+
+    await expect(
+      service.update('outro-id', { senhaAtual: 'SenhaAtual@1', senha: 'SenhaNova@1' }, admin),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(usuario.findUnique).not.toHaveBeenCalled();
+  });
+});
+
 describe('UsersService.remove', () => {
-  it('exclui o usuário e retorna mensagem', async () => {
+  it('permite ao usuário excluir a própria conta', async () => {
     const { service, usuario } = createService();
     usuario.delete.mockResolvedValue({});
 
-    await expect(service.remove('outro-id', admin)).resolves.toEqual({
+    await expect(service.remove(common.id, common)).resolves.toEqual({
       message: 'Usuário removido com sucesso.',
     });
-    expect(usuario.delete).toHaveBeenCalledWith({ where: { id: 'outro-id' } });
+    expect(usuario.delete).toHaveBeenCalledWith({ where: { id: common.id } });
   });
 
-  it('bloqueia quem não é ADMIN', async () => {
+  it('impede usuário comum de excluir outra conta', async () => {
     const { service, usuario } = createService();
 
     await expect(service.remove('outro-id', common)).rejects.toBeInstanceOf(ForbiddenException);
     expect(usuario.delete).not.toHaveBeenCalled();
   });
 
-  it('impede o ADMIN de excluir a própria conta', async () => {
-    const { service } = createService();
+  it('permite ao ADMIN excluir qualquer conta', async () => {
+    const { service, usuario } = createService();
+    usuario.delete.mockResolvedValue({});
 
-    await expect(service.remove(admin.id, admin)).rejects.toBeInstanceOf(BadRequestException);
+    await service.remove('outro-id', admin);
+
+    expect(usuario.delete).toHaveBeenCalledWith({ where: { id: 'outro-id' } });
   });
 
   it('converte P2025 em NotFoundException', async () => {

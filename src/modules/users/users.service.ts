@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { hash } from 'bcrypt';
+import { compare, hash } from 'bcrypt';
 import { TipoUsuario } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { AuthUser } from './decorators/current-user.decorator.js';
@@ -15,7 +15,7 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 
 const SALT_ROUNDS = 10;
 
-const PROFILE_SELECT = {
+const USER_SELECT = {
   id: true,
   nome: true,
   email: true,
@@ -37,29 +37,13 @@ function hasPrismaCode(error: unknown, code: string): boolean {
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Já existia na develop
-  async getProfile(userId: string) {
-    const user = await this.prisma.usuario.findUnique({
-      where: { id: userId },
-      select: PROFILE_SELECT,
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado.');
-    }
-
-    return user;
-  }
-
-  async create(dto: CreateUserDto, actor: AuthUser) {
-    this.assertAdmin(actor);
-
+  async create(dto: CreateUserDto) {
     const senha = await hash(dto.senha, SALT_ROUNDS);
 
     try {
       return await this.prisma.usuario.create({
-        data: { nome: dto.nome, email: dto.email, senha, cargo: dto.cargo },
-        select: PROFILE_SELECT,
+        data: { nome: dto.nome, email: dto.email, senha },
+        select: USER_SELECT,
       });
     } catch (error) {
       if (hasPrismaCode(error, 'P2002')) {
@@ -86,7 +70,7 @@ export class UsersService {
     const [data, total] = await Promise.all([
       this.prisma.usuario.findMany({
         where,
-        select: PROFILE_SELECT,
+        select: USER_SELECT,
         orderBy: { nome: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -102,29 +86,62 @@ export class UsersService {
 
   async findOne(id: string, actor: AuthUser) {
     this.assertAdmin(actor);
-    return this.getProfile(id);
+
+    const user = await this.prisma.usuario.findUnique({
+      where: { id },
+      select: USER_SELECT,
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado.');
+    }
+
+    return user;
   }
 
   async update(id: string, dto: UpdateUserDto, actor: AuthUser) {
-    const isAdmin = actor.cargo === TipoUsuario.ADMIN;
-
-    if (!isAdmin && actor.id !== id) {
+    if (actor.id !== id) {
       throw new ForbiddenException('Você só pode alterar a própria conta.');
     }
 
-    if (!isAdmin && dto.cargo !== undefined) {
-      throw new ForbiddenException('Apenas administradores podem alterar o cargo.');
+    if (dto.nome === undefined && dto.email === undefined && dto.senha === undefined) {
+      throw new BadRequestException('Informe ao menos um campo para atualizar.');
     }
 
-    if (dto.nome === undefined && dto.email === undefined && dto.cargo === undefined) {
-      throw new BadRequestException('Informe ao menos um campo para atualizar.');
+    let novoHash: string | undefined;
+
+    if (dto.senha !== undefined) {
+      if (!dto.senhaAtual) {
+        throw new BadRequestException('Informe a senha atual para alterar a senha.');
+      }
+
+      const current = await this.prisma.usuario.findUnique({
+        where: { id },
+        select: { senha: true },
+      });
+
+      if (!current) {
+        throw new NotFoundException('Usuário não encontrado.');
+      }
+
+      const matches = await compare(dto.senhaAtual, current.senha);
+
+      if (!matches) {
+        throw new BadRequestException('Senha atual incorreta.');
+      }
+
+      if (dto.senha === dto.senhaAtual) {
+        throw new BadRequestException('A nova senha deve ser diferente da atual.');
+      }
+
+      novoHash = await hash(dto.senha, SALT_ROUNDS);
     }
 
     try {
       return await this.prisma.usuario.update({
         where: { id },
-        data: { nome: dto.nome, email: dto.email, cargo: dto.cargo },
-        select: PROFILE_SELECT,
+        data: { nome: dto.nome, email: dto.email, senha: novoHash },
+        select: USER_SELECT,
       });
     } catch (error) {
       if (hasPrismaCode(error, 'P2002')) {
@@ -138,10 +155,10 @@ export class UsersService {
   }
 
   async remove(id: string, actor: AuthUser) {
-    this.assertAdmin(actor);
+    const isAdmin = actor.cargo === TipoUsuario.ADMIN;
 
-    if (actor.id === id) {
-      throw new BadRequestException('Você não pode excluir a própria conta.');
+    if (!isAdmin && actor.id !== id) {
+      throw new ForbiddenException('Você só pode excluir a própria conta.');
     }
 
     try {

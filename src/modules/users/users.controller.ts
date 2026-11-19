@@ -11,39 +11,27 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type AuthUser } from './decorators/current-user.decorator.js';
-import { CurrentUserId } from './decorators/current-user-id.decorator.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { UsersService } from './users.service.js';
 
 @ApiTags('Usuários')
-@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Get('me')
-  @ApiOperation({ summary: 'Consulta o perfil do usuário autenticado' })
-  @ApiResponse({ status: 200, description: 'Perfil do usuário, sem dados sensíveis.' })
-  @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
-  @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
-  getProfile(@CurrentUserId() userId: string) {
-    return this.usersService.getProfile(userId);
-  }
-
   @Post()
-  @ApiOperation({ summary: 'Cria um usuário (ADMIN)' })
+  @ApiOperation({ summary: 'Cria a própria conta (público, cargo USUARIO)' })
   @ApiResponse({ status: 201, description: 'Usuário criado, sem a senha.' })
   @ApiResponse({ status: 400, description: 'Dados inválidos.' })
-  @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
-  @ApiResponse({ status: 403, description: 'Sem permissão.' })
   @ApiResponse({ status: 409, description: 'E-mail já está em uso.' })
-  create(@Body() dto: CreateUserDto, @CurrentUser() actor: AuthUser) {
-    return this.usersService.create(dto, actor);
+  create(@Body() dto: CreateUserDto) {
+    return this.usersService.create(dto);
   }
 
   @Get()
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Lista usuários com paginação (ADMIN)' })
   @ApiResponse({ status: 200, description: 'Lista paginada, sem senhas.' })
   @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
@@ -53,6 +41,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Consulta um usuário pelo ID (ADMIN)' })
   @ApiResponse({ status: 200, description: 'Dados do usuário, sem a senha.' })
   @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
@@ -63,11 +52,15 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Atualiza nome, e-mail ou cargo (cargo só ADMIN)' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Edita nome, e-mail e/ou senha da própria conta' })
   @ApiResponse({ status: 200, description: 'Usuário atualizado, sem a senha.' })
-  @ApiResponse({ status: 400, description: 'Dados inválidos ou nenhum campo informado.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Dados inválidos, nenhum campo informado ou senha atual incorreta.',
+  })
   @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
-  @ApiResponse({ status: 403, description: 'Sem permissão.' })
+  @ApiResponse({ status: 403, description: 'Só é possível editar a própria conta.' })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })
   @ApiResponse({ status: 409, description: 'E-mail já está em uso.' })
   update(
@@ -79,9 +72,9 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Exclui um usuário pelo ID (ADMIN)' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Exclui a própria conta, ou qualquer conta se for ADMIN' })
   @ApiResponse({ status: 200, description: 'Usuário removido.' })
-  @ApiResponse({ status: 400, description: 'Tentativa de excluir a própria conta.' })
   @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
   @ApiResponse({ status: 403, description: 'Sem permissão.' })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado.' })

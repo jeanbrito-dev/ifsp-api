@@ -1,7 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { TipoUsuario } from '../../../generated/prisma/enums.js';
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -28,9 +27,4 @@ export class CreateUserDto {
   @MinLength(8)
   @MaxLength(72)
   senha!: string;
-
-  @ApiPropertyOptional({ enum: TipoUsuario, default: TipoUsuario.USUARIO })
-  @IsOptional()
-  @IsEnum(TipoUsuario)
-  cargo?: TipoUsuario;
 }
