@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { UpdateUserDto } from './dto/update-user.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -21,9 +22,9 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-  ) {}
-
-  async register(dto: RegisterDto) {
+  ) { }
+async register(dto: RegisterDto) {
+  try {
     const normalizedEmail = dto.email.trim().toLowerCase();
 
     const existingUser = await this.prisma.usuario.findUnique({
@@ -31,7 +32,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Já existe um usuário cadastrado com este e-mail');
+      throw new ConflictException(
+        'Já existe um usuário cadastrado com este e-mail',
+      );
     }
 
     const hashedPassword = await bcrypt.hash(dto.senha, 10);
@@ -51,14 +54,23 @@ export class AuthService {
       },
     });
 
-    const payload = { sub: user.id, email: user.email, cargo: user.cargo };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      cargo: user.cargo,
+    };
+
     const accessToken = await this.jwtService.signAsync(payload);
 
     return {
       user,
       accessToken,
     };
+  } catch (error) {
+    console.error('ERRO NO REGISTER:', error);
+    throw error;
   }
+}
 
   async login(dto: LoginDto) {
     const normalizedEmail = dto.email.trim().toLowerCase();
@@ -181,5 +193,61 @@ export class AuthService {
       message: 'Senha alterada com sucesso!',
     };
   }
+  async updateProfile(id: string, dto: UpdateUserDto) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    if (dto.email) {
+      const emailExists = await this.prisma.usuario.findUnique({
+        where: { email: dto.email },
+      });
+
+      if (emailExists && emailExists.id !== id) {
+        throw new ConflictException('E-mail já cadastrado');
+      }
+    }
+
+    const data: { email?: string; senha?: string } = {};
+
+    if (dto.email) {
+      data.email = dto.email;
+    }
+
+    if (dto.senha) {
+      data.senha = await bcrypt.hash(dto.senha, 10);
+    }
+
+    return this.prisma.usuario.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+      nome: true,
+      email: true,
+      cargo: true,
+      atualizadoEm: true,
+      },
+    });
+  }
+
+  async deleteProfile(id: string) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    await this.prisma.usuario.delete({
+      where: { id },
+    });
+  }
+  
 }
 

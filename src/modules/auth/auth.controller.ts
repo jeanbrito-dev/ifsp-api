@@ -6,7 +6,12 @@ import {
   HttpStatus,
   Post,
   UseGuards,
+  Patch,
+  Delete,
 } from '@nestjs/common';
+
+import { UpdateUserDto } from '../auth/dto/update-user.dto.js';
+
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -19,6 +24,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -27,7 +33,7 @@ import {
 @ApiTags('Autenticação')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -73,5 +79,28 @@ export class AuthController {
   async getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getProfile(user.id);
   }
+
+
+@Patch('me')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Atualizar dados do usuário autenticado' })
+@ApiResponse({ status: 200, description: 'Usuário atualizado com sucesso' })
+async updateMe(
+  @CurrentUser() user: AuthenticatedUser,
+  @Body() dto: UpdateUserDto,
+) {
+  return this.authService.updateProfile(user.id, dto);
 }
 
+@Delete('me')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@HttpCode(HttpStatus.NO_CONTENT)
+@ApiOperation({ summary: 'Excluir conta do usuário autenticado' })
+@ApiResponse({ status: 204, description: 'Usuário excluído com sucesso' })
+async deleteMe(@CurrentUser() user: AuthenticatedUser) {
+  return this.authService.deleteProfile(user.id);
+}
+
+}
