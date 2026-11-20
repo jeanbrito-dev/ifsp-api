@@ -125,7 +125,6 @@ model CodigoResetSenha {
 
   @@index([usuarioId, expiraEm])
 }
-<<<<<<< HEAD
 model Curtida {
   id        String   @id @default(uuid()) @db.Uuid
   usuarioId String   @db.Uuid
@@ -137,7 +136,7 @@ model Curtida {
 
   @@unique([usuarioId, eventoId])
   @@index([eventoId])
-=======
+}
 
 model Homenagem {
   id            Int      @id @default(autoincrement())
@@ -202,5 +201,4 @@ model Documento {
 
   @@index([categoria, dataPublicacao])
   @@map("documentos")
->>>>>>> 8bba18d783ca3114eefd9fb37f92d4e45e362582
 }
