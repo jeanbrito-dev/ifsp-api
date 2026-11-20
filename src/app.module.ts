@@ -8,6 +8,7 @@ import { CalendarioModule } from './calendario/calendario.module.js';
 import { DocumentosModule } from './documentos/documentos.module.js';
 import { HomenagensModule } from './homenagens/homenagens.module.js';
 import { EventsModule } from './modules/events/events.module.js';
+import { InteracoesModule } from './interacoes/interacoes.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { EventsModule } from './modules/events/events.module.js';
     HomenagensModule,
     CalendarioModule,
     DocumentosModule,
+    InteracoesModule,
   ],
 })
 export class AppModule {}
