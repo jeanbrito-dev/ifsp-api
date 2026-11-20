@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { createReadStream, existsSync } from 'fs';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
-import { PrismaService } from '../database/prisma.service.js';
+import { PrismaService } from '../../database/prisma.service.js';
 import { CreateDocumentoDto } from './dto/create-documento.dto.js';
 import { QueryDocumentoDto } from './dto/query-documento.dto.js';
 import { UpdateDocumentoDto } from './dto/update-documento.dto.js';

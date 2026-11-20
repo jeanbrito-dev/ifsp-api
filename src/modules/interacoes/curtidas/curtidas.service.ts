@@ -3,7 +3,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { PrismaService } from '../../database/prisma.service.js';
+import { PrismaService } from '../../../database/prisma.service.js';
 
 @Injectable()
 export class CurtidasService {

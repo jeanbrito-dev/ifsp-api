@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { CategoriaDocumento } from '../../generated/prisma/enums.js';
+import { CategoriaDocumento } from '../../../generated/prisma/enums.js';
 
 export class QueryDocumentoDto {
   @IsOptional()

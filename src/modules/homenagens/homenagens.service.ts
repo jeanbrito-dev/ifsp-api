@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service.js';
+import { PrismaService } from '../../database/prisma.service.js';
 import { CreateHomenagemDto } from './dto/create-homenagem.dto.js';
 import { QueryHomenagemDto } from './dto/query-homenagem.dto.js';
 import { UpdateHomenagemDto } from './dto/update-homenagem.dto.js';

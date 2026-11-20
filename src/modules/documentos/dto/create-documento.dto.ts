@@ -1,6 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { CategoriaDocumento } from '../../generated/prisma/enums.js';
+import { CategoriaDocumento } from '../../../generated/prisma/enums.js';
 
 export class CreateDocumentoDto {
   @IsString()
