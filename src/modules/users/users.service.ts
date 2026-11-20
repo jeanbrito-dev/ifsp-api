@@ -1,9 +1,11 @@
+
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { compare, hash } from 'bcrypt';
 import { TipoUsuario } from '../../generated/prisma/enums.js';
@@ -49,7 +51,8 @@ export class UsersService {
       if (hasPrismaCode(error, 'P2002')) {
         throw new ConflictException('Este e-mail já está em uso.');
       }
-      throw error;
+
+      this.handleDatabaseError(error);
     }
   }
 
@@ -67,36 +70,48 @@ export class UsersService {
         }
       : {};
 
-    const [data, total] = await Promise.all([
-      this.prisma.usuario.findMany({
-        where,
-        select: USER_SELECT,
-        orderBy: { nome: 'asc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.usuario.count({ where }),
-    ]);
+    try {
+      const [data, total] = await Promise.all([
+        this.prisma.usuario.findMany({
+          where,
+          select: USER_SELECT,
+          orderBy: { nome: 'asc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        this.prisma.usuario.count({ where }),
+      ]);
 
-    return {
-      data,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-    };
+      return {
+        data,
+        meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      };
+    } catch (error) {
+      this.handleDatabaseError(error);
+    }
   }
 
   async findOne(id: string, actor: AuthUser) {
     this.assertAdmin(actor);
 
-    const user = await this.prisma.usuario.findUnique({
-      where: { id },
-      select: USER_SELECT,
-    });
+    try {
+      const user = await this.prisma.usuario.findUnique({
+        where: { id },
+        select: USER_SELECT,
+      });
 
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado.');
+      if (!user) {
+        throw new NotFoundException('Usuário não encontrado.');
+      }
+
+      return user;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.handleDatabaseError(error);
     }
-
-    return user;
   }
 
   async update(id: string, dto: UpdateUserDto, actor: AuthUser) {
@@ -115,10 +130,16 @@ export class UsersService {
         throw new BadRequestException('Informe a senha atual para alterar a senha.');
       }
 
-      const current = await this.prisma.usuario.findUnique({
-        where: { id },
-        select: { senha: true },
-      });
+      let current;
+
+      try {
+        current = await this.prisma.usuario.findUnique({
+          where: { id },
+          select: { senha: true },
+        });
+      } catch (error) {
+        this.handleDatabaseError(error);
+      }
 
       if (!current) {
         throw new NotFoundException('Usuário não encontrado.');
@@ -147,10 +168,12 @@ export class UsersService {
       if (hasPrismaCode(error, 'P2002')) {
         throw new ConflictException('Este e-mail já está em uso.');
       }
+
       if (hasPrismaCode(error, 'P2025')) {
         throw new NotFoundException('Usuário não encontrado.');
       }
-      throw error;
+
+      this.handleDatabaseError(error);
     }
   }
 
@@ -167,20 +190,45 @@ export class UsersService {
       if (hasPrismaCode(error, 'P2025')) {
         throw new NotFoundException('Usuário não encontrado.');
       }
+
       if (hasPrismaCode(error, 'P2003')) {
         throw new ConflictException(
           'Este usuário possui eventos vinculados e não pode ser excluído.',
         );
       }
-      throw error;
+
+      this.handleDatabaseError(error);
     }
 
     return { message: 'Usuário removido com sucesso.' };
   }
 
+  private handleDatabaseError(error: unknown): never {
+    const unavailableCodes = [
+      'P1000',
+      'P1001',
+      'P1002',
+      'P1008',
+      'P1017',
+      'P2024',
+    ];
+
+    if (
+      unavailableCodes.some((code) => hasPrismaCode(error, code))
+    ) {
+      throw new ServiceUnavailableException(
+        'O banco de dados está temporariamente indisponível. Tente novamente mais tarde.',
+      );
+    }
+
+    throw error;
+  }
+
   private assertAdmin(actor: AuthUser) {
     if (actor.cargo !== TipoUsuario.ADMIN) {
-      throw new ForbiddenException('Apenas administradores podem executar esta ação.');
+      throw new ForbiddenException(
+        'Apenas administradores podem executar esta ação.',
+      );
     }
   }
 }
