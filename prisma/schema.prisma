@@ -125,6 +125,7 @@ model CodigoResetSenha {
 
   @@index([usuarioId, expiraEm])
 }
+<<<<<<< HEAD
 model Curtida {
   id        String   @id @default(uuid()) @db.Uuid
   usuarioId String   @db.Uuid
@@ -136,4 +137,70 @@ model Curtida {
 
   @@unique([usuarioId, eventoId])
   @@index([eventoId])
+=======
+
+model Homenagem {
+  id            Int      @id @default(autoincrement())
+  titulo        String
+  homenageado   String
+  descricao     String
+  fotoUrl       String?
+  data          DateTime
+  criadoPorId   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("homenagens")
+}
+
+enum TipoEvento {
+  FERIADO
+  PROVA
+  RECESSO
+  MATRICULA
+  INICIO_AULAS
+  FIM_AULAS
+  OUTRO
+}
+
+model EventoCalendario {
+  id         Int        @id @default(autoincrement())
+  titulo     String
+  descricao  String?
+  dataInicio DateTime
+  dataFim    DateTime?
+  tipo       TipoEvento @default(OUTRO)
+  campus     String?
+  anoLetivo  Int
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([anoLetivo, dataInicio])
+  @@map("eventos_calendario")
+}
+
+enum CategoriaDocumento {
+  EDITAL
+  PORTARIA
+  RESOLUCAO
+  OUTRO
+}
+
+model Documento {
+  id              Int                @id @default(autoincrement())
+  titulo          String
+  descricao       String?
+  categoria       CategoriaDocumento
+  arquivoNome     String
+  arquivoPath     String
+  arquivoMimetype String
+  arquivoTamanho  Int
+  dataPublicacao  DateTime           @default(now())
+  ativo           Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([categoria, dataPublicacao])
+  @@map("documentos")
+>>>>>>> 8bba18d783ca3114eefd9fb37f92d4e45e362582
 }
