@@ -37,7 +37,7 @@ function hasPrismaCode(error: unknown, code: string): boolean {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateUserDto) {
     const senha = await hash(dto.senha, SALT_ROUNDS);
@@ -63,11 +63,11 @@ export class UsersService {
 
     const where = search
       ? {
-          OR: [
-            { nome: { contains: search, mode: 'insensitive' as const } },
-            { email: { contains: search, mode: 'insensitive' as const } },
-          ],
-        }
+        OR: [
+          { nome: { contains: search, mode: 'insensitive' as const } },
+          { email: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }
       : {};
 
     try {
@@ -92,6 +92,12 @@ export class UsersService {
   }
 
   async findOne(id: string, actor: AuthUser) {
+    if (actor.cargo !== TipoUsuario.ADMIN && actor.id !== id) {
+      throw new ForbiddenException(
+        'Você só pode consultar o próprio perfil.',
+      );
+    }
+
     this.assertAdmin(actor);
 
     try {
