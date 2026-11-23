@@ -12,7 +12,10 @@ import {
 
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUserId } from '../users/decorators/current-user-id.decorator.js';
+import {
+  CurrentUser,
+  type AuthUser,
+} from '../users/decorators/current-user.decorator.js';
 
 import { CreateInstitutionDto } from './dto/create-institution.dto.js';
 import { UpdateInstitutionDto } from './dto/update-institution.dto.js';
@@ -43,7 +46,7 @@ export class InstitutionsController {
     return this.institutionsService.findAll(query);
   }
 
-  // Detalhes de uma instituição
+  // Consultar detalhes de uma instituição
   @Get(':id')
   @ApiOperation({ summary: 'Consultar detalhes de uma instituição' })
   @ApiResponse({ status: 200, description: 'Detalhes da instituição.' })
@@ -84,10 +87,10 @@ export class InstitutionsController {
   @ApiResponse({ status: 404, description: 'Instituição não encontrada.' })
   @ApiResponse({ status: 409, description: 'Instituição já seguida.' })
   follow(
-    @CurrentUserId() userId: string,
+    @CurrentUser() actor: AuthUser,
     @Param('id', ParseUUIDPipe) institutionId: string,
   ) {
-    return this.institutionsService.followInstitution(userId, institutionId);
+    return this.institutionsService.followInstitution(actor.id, institutionId);
   }
 
   // Deixar de seguir instituição
@@ -96,12 +99,15 @@ export class InstitutionsController {
   @ApiOperation({ summary: 'Deixar de seguir uma instituição' })
   @ApiResponse({ status: 200, description: 'Instituição não seguida.' })
   @ApiResponse({ status: 401, description: 'Usuário não autenticado.' })
-  @ApiResponse({ status: 404, description: 'Instituição não encontrada ou não seguida.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Instituição não encontrada ou não seguida.',
+  })
   unfollow(
-    @CurrentUserId() userId: string,
+    @CurrentUser() actor: AuthUser,
     @Param('id', ParseUUIDPipe) institutionId: string,
   ) {
-    return this.institutionsService.unfollowInstitution(userId, institutionId);
+    return this.institutionsService.unfollowInstitution(actor.id, institutionId);
   }
 
   // Listar seguidores da instituição
