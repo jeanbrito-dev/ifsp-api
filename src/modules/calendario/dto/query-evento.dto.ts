@@ -1,26 +1,25 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { CategoriaDocumento } from '../../generated/prisma/enums.js';
+import { TipoEvento } from '../../../generated/prisma/enums.js';
 
-export class QueryDocumentoDto {
+export class QueryEventoDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  ano?: number;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page = 1;
+  @Max(12)
+  mes?: number;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(50)
-  limit = 10;
-
-  @IsOptional()
-  @IsEnum(CategoriaDocumento)
-  categoria?: CategoriaDocumento;
+  @IsEnum(TipoEvento)
+  tipo?: TipoEvento;
 
   @IsOptional()
   @IsString()
-  busca?: string;
+  campus?: string;
 }

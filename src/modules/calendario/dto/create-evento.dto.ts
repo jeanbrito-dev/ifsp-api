@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
-import { TipoEvento } from '../../generated/prisma/enums.js';
+import { TipoEvento } from '../../../generated/prisma/enums.js';
 
 export class CreateEventoDto {
   @IsString()
