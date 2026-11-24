@@ -16,15 +16,6 @@ import { HomenagensModule } from './modules/homenagens/homenagens.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { InteracoesModule } from './modules/interacoes/interacoes.module.js';
 
-import { UsersModule } from './modules/users/users.module.js';
-import { InstitutionsModule } from './modules/institutions/institutions.module.js';
-
-import { CalendarioModule } from './modules/calendario/calendario.module.js';
-import { DocumentosModule } from './modules/documentos/documentos.module.js';
-import { HomenagensModule } from './modules/homenagens/homenagens.module.js';
-import { EventsModule } from './modules/events/events.module.js';
-import { InteracoesModule } from './modules/interacoes/interacoes.module.js';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
