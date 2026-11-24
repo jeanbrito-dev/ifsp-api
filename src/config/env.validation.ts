@@ -6,4 +6,6 @@ export const envValidationSchema = Joi.object({
   DATABASE_URL: Joi.string().uri({ scheme: ['postgresql', 'postgres'] }).required(),
   CORS_ORIGINS: Joi.string().default('http://localhost:5173'),
   SWAGGER_ENABLED: Joi.boolean().default(true),
+  JWT_SECRET: Joi.string().default('super_secret_jwt_key_ifsp_eventos_2026'),
+  JWT_EXPIRES_IN: Joi.string().default('7d'),
 });

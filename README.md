@@ -88,3 +88,59 @@ Todas partem de `develop`; migrations e mudança de contrato precisam estar no m
 ## ESTRUTURA FINAL DA API
 
 Os módulos previstos são autenticação, usuários, categorias, instituições, eventos, seguidores, favoritos, comentários, homenagens, calendário, documentos/editais, Panorama IFSP e permissões administrativas. A ordem final depende dos contratos aprovados e das issues do projeto.
+
+## Módulo de Autenticação (Documentação de Alterações)
+
+Implementação do módulo de autenticação integrado ao PostgreSQL através do Prisma ORM (`Usuario` e `CodigoResetSenha`), com hashing de senha via bcrypt, emissão e validação de tokens JWT via Passport, DTOs validados via class-validator, documentação no Swagger e cobertura por testes unitários no Vitest.
+
+### Endpoints Disponíveis (`/api/auth`)
+
+| Método | Rota | Proteção | Descrição |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/register` | Pública | Cadastra um novo usuário, gera o hash seguro da senha e retorna dados do perfil e token JWT. |
+| `POST` | `/api/auth/login` | Pública | Valida credenciais no banco de dados e retorna o token de acesso JWT. |
+| `POST` | `/api/auth/forgot-password` | Pública | Gera código aleatório com validade temporária associado ao usuário na tabela `CodigoResetSenha`. |
+| `POST` | `/api/auth/reset-password` | Pública | Valida o código, atualiza o hash da nova senha no banco e invalida o código utilizado. |
+| `GET` | `/api/auth/me` | Bearer JWT | Retorna o perfil completo do usuário autenticado a partir do token. |
+
+### Arquivos Alterados
+
+| Arquivo | Descrição |
+| --- | --- |
+| `src/app.module.ts` | Importação e registro global do `AuthModule`. |
+| `src/main.ts` | Configuração de autenticação Bearer no Swagger UI (`addBearerAuth`). |
+| `src/config/env.validation.ts` | Adição de validação para `JWT_SECRET` e `JWT_EXPIRES_IN`. |
+| `.env` / `.env.example` | Definição das variáveis de ambiente para assinatura e expiração de JWT. |
+| `package.json` | Instalação de dependências: `@nestjs/jwt`, `@nestjs/passport`, `passport`, `passport-jwt`, `bcryptjs`. |
+
+### Arquivos Criados
+
+| Arquivo | Descrição |
+| --- | --- |
+| `src/modules/auth/auth.module.ts` | Módulo NestJS configurando Passport, JwtModule e exportando serviços e guards. |
+| `src/modules/auth/auth.service.ts` | Regras de negócio, consultas Prisma e criptografia para autenticação. |
+| `src/modules/auth/auth.controller.ts` | Rotas REST e anotações Swagger para o módulo `/auth`. |
+| `src/modules/auth/auth.service.spec.ts` | Testes unitários com Vitest cobrindo fluxos de login, cadastro e erros. |
+| `src/modules/auth/guards/jwt-auth.guard.ts` | Guard de autenticação para proteção de rotas privadas. |
+| `src/modules/auth/strategies/jwt.strategy.ts` | Estratégia Passport para validação do payload JWT e consulta do usuário. |
+| `src/modules/auth/decorators/current-user.decorator.ts` | Decorator customizado para injeção do usuário autenticado no controller. |
+| `src/modules/auth/dto/login.dto.ts` | Validação de entrada para login (e-mail e senha). |
+| `src/modules/auth/dto/register.dto.ts` | Validação de entrada para cadastro (nome, e-mail e senha). |
+| `src/modules/auth/dto/forgot-password.dto.ts` | Validação de entrada para solicitação de código de recuperação. |
+| `src/modules/auth/dto/reset-password.dto.ts` | Validação de entrada para redefinição com código e nova senha. |
+
+### Comandos para Inclusão na Branch `feature/auth-jwt`
+
+```powershell
+cd ifsp-api
+
+# Criar ou alternar para a branch planejada:
+git checkout -b feature/auth-jwt
+
+# Adicionar arquivos alterados e criados:
+git add .env.example package.json package-lock.json README.md src/
+
+# Realizar o commit:
+git commit -m "feat(auth): modulo completo de autenticacao JWT, bcrypt e integracao Prisma"
+```
+
