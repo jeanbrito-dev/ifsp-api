@@ -34,7 +34,8 @@ A API atende em `http://localhost:3000/api` e o Swagger em `http://localhost:300
 src/common/       filtros, guards, decorators e interceptors genéricos
 src/config/       validação e leitura de configuração
 src/database/     PrismaService e módulo global
-src/modules/      um diretório por domínio de negócio
+src/modules/      módulos existentes da API
+src/{homenagens,calendario,documentos}/ módulos do Panorama IFSP
 prisma/           schema e migrations somente versionadas
 src/generated/    Prisma Client gerado; não editar manualmente
 test/             testes de integração e unitários
@@ -44,7 +45,7 @@ Cada domínio deverá seguir `modules/<domain>/{<domain>.module,<domain>.control
 
 ## Banco e Prisma 7
 
-O schema atual é intencionalmente vazio: não crie entidade de negócio sem alinhamento com liderança backend. Ao modelar uma mudança, atualize schema, gere migration nomeada, revise o SQL e execute:
+O schema contém os modelos existentes da API e os modelos de Homenagens, Calendário Acadêmico e Documentos/Editais. Ao modelar uma mudança, atualize schema, gere migration nomeada, revise o SQL e execute:
 
 ```powershell
 npm run prisma:migrate -- --name <descricao-em-kebab-case>
