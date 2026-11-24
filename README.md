@@ -143,4 +143,32 @@ git add .env.example package.json package-lock.json README.md src/
 # Realizar o commit:
 git commit -m "feat(auth): modulo completo de autenticacao JWT, bcrypt e integracao Prisma"
 ```
+### Teste Back-end (Helder)
+#### Alterações realizadas
+- package.json:
+  . Adicionadas as dependências de desenvolvimento jest, ts-jest e @types/jest.
+  . Atualizados os scripts: test e test:jest executam node --experimental-vm-modules node_modules/jest/bin/jest.js; o runner anterior foi mantido em test:vitest.
+- jest.config.mjs:
+   . Configurado para ambiente node, módulos ESM (extensionsToTreatAsEsm: ['.ts']), mapeamento de imports .js para arquivos .ts (NodeNext), testMatch: ['<rootDir>/test/test.js'] e ts-jest com useESM: true.
+   . Prisma Client: gerado em src/generated/prisma via prisma generate para resolução dos enums e tipos do schema.
+   . test/test.js (37 testes em 7 blocos):
+     1 - Ambiente e Filtro Global (envValidationSchema e HttpExceptionFilter): validação de DATABASE_URL/defaults e formatação de erros HTTP e erro 500 sem vazamento de detalhes internos.
+     2 - DTOs via ValidationPipe (whitelist, transform, forbidNonWhitelisted): validação e transformação de
+     - RegisterDto, 
+     - CreateUserDto, 
+     - CreateEventDto, 
+     - CreateInstitutionDto, 
+     - CreateEventoDto, 
+     - CreateDocumentoDto, 
+     - CreateHomenagemDto e 
+     - CriarComentarioDto.
+     3 - Autenticação e JWT (AuthService e JwtStrategy): normalização de e-mail, hash bcryptjs, emissão de token, conflito de e-mail (ConflictException), credenciais inválidas (UnauthorizedException), forgotPassword/resetPassword com $transaction e validação de payload JWT.
+     4 - Usuários e RBAC (UsersService): restrição ADMIN em findAll, bloqueio de alteração de terceiros, regras de troca de senha e mapeamento de códigos Prisma (P1001 → 503, P2003 → 409).
+     5 - Eventos, Instituições e Seguidores (EventsService e InstitutionsService): bloqueio de evento duplicado e slug duplicado, exclusão com eventos vinculados e fluxos de follow/unfollow.
+     6 - Conteúdo e Interações (CalendarioService, HomenagensService, DocumentosService, ComentariosService e CurtidasService): validação de datas, paginação, obrigatoriedade de PDF, ocultação de inativos, autoria na exclusão de comentários e upsert idempotente de curtidas.
+     7 - Integração HTTP (@nestjs/testing + supertest): testes ponta a ponta nos controllers com PrismaService mockado, validando POST /api/auth/register, GET /api/auth/me (guard JWT), GET /api/events/:id (ParseUUIDPipe e HttpExceptionFilter), POST /api/events, POST /api/institutions/:id/follow, POST /api/calendario e GET /api/eventos/:eventoId/curtidas/contagem.
 
+#### Resultados das verificações
+- npm.cmd test (jest): 1 suíte aprovada, 37/37 testes passando (64.063 s).
+- npm.cmd run typecheck (tsc --noEmit): aprovado sem erros.
+- npm.cmd run lint: reportou apenas 2 erros pré-existentes de imports não utilizados em src/app.module.ts (AuthModule e InstituicoesModule), fora das alterações desta tarefa.
