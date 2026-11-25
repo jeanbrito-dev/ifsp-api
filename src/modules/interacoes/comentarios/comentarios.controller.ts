@@ -7,64 +7,72 @@ import {
   Body,
   Param,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
   ApiTags,
   ApiOperation,
-  ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
+
+import {
+  AuthenticatedUser,
+  CurrentUser,
+} from '../../auth/decorators/current-user.decorator.js';
+
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
 
 import { CriarComentarioDto } from './criar-comentarios.dto.js';
 import { ComentariosService } from './comentarios.service.js';
 
 @ApiTags('Comentários')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('eventos/:eventoId/comentarios')
 export class ComentariosController {
   constructor(
     private readonly comentariosService: ComentariosService,
   ) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Criar um comentário em um evento' })
-  async criar(
-    @Param('eventoId', ParseUUIDPipe) eventoId: string,
-    @Body() body: CriarComentarioDto,
-  ) {
-    return this.comentariosService.criar(
-      body.usuarioId,
-      eventoId,
-      body.conteudo,
-    );
-  }
-
   @Get()
-  @ApiOperation({ summary: 'Listar comentários de um evento' })
+  @ApiOperation({
+    summary: 'Listar comentários de um evento',
+  })
   async listar(
     @Param('eventoId', ParseUUIDPipe) eventoId: string,
   ) {
     return this.comentariosService.listarPorEvento(eventoId);
   }
 
+  @Post()
+  @ApiOperation({
+    summary: 'Criar comentário em um evento',
+  })
+  async criar(
+    @Param('eventoId', ParseUUIDPipe) eventoId: string,
+    @Body() dto: CriarComentarioDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.comentariosService.criar(
+      user.id,
+      eventoId,
+      dto.conteudo,
+    );
+  }
+
   @Delete(':comentarioId')
-  @ApiOperation({ summary: 'Excluir um comentário' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        usuarioId: { type: 'string', format: 'uuid' },
-      },
-      required: ['usuarioId'],
-    },
+  @ApiOperation({
+    summary: 'Excluir comentário próprio',
   })
   async excluir(
     @Param('eventoId', ParseUUIDPipe) eventoId: string,
     @Param('comentarioId', ParseUUIDPipe) comentarioId: string,
-    @Body() body: { usuarioId: string },
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.comentariosService.excluir(
       comentarioId,
-      body.usuarioId,
+      user.id,
       eventoId,
     );
   }

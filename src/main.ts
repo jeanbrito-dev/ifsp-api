@@ -26,7 +26,12 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
   if (process.env.SWAGGER_ENABLED !== 'false') {
-    const config = new DocumentBuilder().setTitle('IFSP Eventos API').setVersion('1.0').build();
+    const config = new DocumentBuilder()
+      .setTitle('IFSP Eventos API')
+      .setDescription('API de Eventos e Autenticação do IFSP')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
     SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
   }
   await app.listen(Number(process.env.PORT ?? 3000));

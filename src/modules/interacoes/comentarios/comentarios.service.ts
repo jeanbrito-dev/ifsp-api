@@ -1,39 +1,47 @@
+
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
 
-
 import { PrismaService } from '../../../database/prisma.service.js';
 
 @Injectable()
 export class ComentariosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
-  async criar(usuarioId: string, eventoId: string, conteudo: string) {
-    const usuario = await this.prisma.usuario.findUnique({
-      where: { id: usuarioId },
-    });
-
-    if (!usuario) {
-      throw new NotFoundException('Usuário não encontrado.');
-    }
-
+  private async verificarEvento(eventoId: string) {
     const evento = await this.prisma.evento.findUnique({
-      where: { id: eventoId },
+      where: {
+        id: eventoId,
+      },
+      select: {
+        id: true,
+      },
     });
 
     if (!evento) {
       throw new NotFoundException('Evento não encontrado.');
     }
+  }
+
+  async criar(
+    usuarioId: string,
+    eventoId: string,
+    conteudo: string,
+  ) {
+    await this.verificarEvento(eventoId);
 
     return this.prisma.comentario.create({
       data: {
         usuarioId,
         eventoId,
-        conteudo,
+        conteudo: conteudo.trim(),
       },
+
       include: {
         usuario: {
           select: {
@@ -46,9 +54,17 @@ export class ComentariosService {
   }
 
   async listarPorEvento(eventoId: string) {
+    await this.verificarEvento(eventoId);
+
     return this.prisma.comentario.findMany({
-      where: { eventoId },
-      orderBy: { criadoEm: 'desc' },
+      where: {
+        eventoId,
+      },
+
+      orderBy: {
+        criadoEm: 'desc',
+      },
+
       include: {
         usuario: {
           select: {
@@ -60,29 +76,33 @@ export class ComentariosService {
     });
   }
 
-  
-async excluir(
-  comentarioId: string,
-  usuarioId: string,
-  eventoId: string,
-) {
-  const comentario = await this.prisma.comentario.findUnique({
-    where: { id: comentarioId },
-  });
+  async excluir(
+    comentarioId: string,
+    usuarioId: string,
+    eventoId: string,
+  ) {
+    const comentario = await this.prisma.comentario.findUnique({
+      where: {
+        id: comentarioId,
+      },
+    });
 
-  if (!comentario || comentario.eventoId !== eventoId) {
-    throw new NotFoundException('Comentário não encontrado.');
+    if (!comentario || comentario.eventoId !== eventoId) {
+      throw new NotFoundException(
+        'Comentário não encontrado.',
+      );
+    }
+
+    if (comentario.usuarioId !== usuarioId) {
+      throw new ForbiddenException(
+        'Você não tem permissão para excluir este comentário.',
+      );
+    }
+
+    return this.prisma.comentario.delete({
+      where: {
+        id: comentarioId,
+      },
+    });
   }
-
-  if (comentario.usuarioId !== usuarioId) {
-    throw new ForbiddenException(
-      'Você não tem permissão para excluir este comentário.',
-    );
-  }
-
-  return this.prisma.comentario.delete({
-    where: { id: comentarioId },
-  });
 }
-
-  }

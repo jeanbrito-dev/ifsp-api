@@ -1,10 +1,16 @@
 
-import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+
+import {
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CriarComentarioDto {
-  @IsUUID()
-  usuarioId!: string;
-
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @IsNotEmpty()
   @MaxLength(1000)

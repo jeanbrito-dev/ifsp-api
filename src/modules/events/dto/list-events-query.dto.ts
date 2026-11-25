@@ -1,6 +1,18 @@
+
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
+
+import { StatusEvento } from '../../../generated/prisma/enums.js';
 
 export class ListEventsQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -18,13 +30,21 @@ export class ListEventsQueryDto {
   @Max(50)
   limit: number = 10;
 
-  @ApiPropertyOptional({ description: 'Palavra-chave no título ou na descrição' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'ID da categoria' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
   categoriaId?: string;
+
+  @ApiPropertyOptional({
+    enum: StatusEvento,
+    description: 'Filtrar pelo status do evento',
+  })
+  @IsOptional()
+  @IsEnum(StatusEvento)
+  status?: StatusEvento;
 }
