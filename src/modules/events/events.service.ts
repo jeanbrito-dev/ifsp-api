@@ -1,17 +1,29 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
 import { PrismaService } from '../../database/prisma.service.js';
+
 import { CreateEventDto } from './dto/create-event.dto.js';
 import { ListEventsQueryDto } from './dto/list-events-query.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   async create(dto: CreateEventDto) {
     const existing = await this.prisma.evento.findFirst({
       where: {
-        titulo: { equals: dto.titulo, mode: 'insensitive' },
+        titulo: {
+          equals: dto.titulo,
+          mode: 'insensitive',
+        },
         inicioEm: dto.inicioEm,
         instituicaoId: dto.instituicaoId,
       },
@@ -23,19 +35,39 @@ export class EventsService {
       );
     }
 
-    return this.prisma.evento.create({ data: dto });
+    return this.prisma.evento.create({
+      data: dto,
+    });
   }
 
   async findAll(query: ListEventsQueryDto) {
-    const { page, limit, search, categoriaId } = query;
+    const {
+      page,
+      limit,
+      search,
+      categoriaId,
+      status,
+    } = query;
 
     const where = {
+      ...(status ? { status } : {}),
       ...(categoriaId ? { categoriaId } : {}),
+
       ...(search
         ? {
             OR: [
-              { titulo: { contains: search, mode: 'insensitive' as const } },
-              { descricao: { contains: search, mode: 'insensitive' as const } },
+              {
+                titulo: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                descricao: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
             ],
           }
         : {}),
@@ -44,23 +76,58 @@ export class EventsService {
     const [data, total] = await Promise.all([
       this.prisma.evento.findMany({
         where,
-        orderBy: { inicioEm: 'asc' },
+
+        include: {
+          categoria: {
+            select: {
+              id: true,
+              nome: true,
+            },
+          },
+
+          instituicao: {
+            select: {
+              id: true,
+              nome: true,
+              logoUrl: true,
+            },
+          },
+        },
+
+        orderBy: {
+          inicioEm: 'asc',
+        },
+
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.evento.count({ where }),
+
+      this.prisma.evento.count({
+        where,
+      }),
     ]);
 
     return {
       data,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
   async findOne(id: string) {
     const event = await this.prisma.evento.findUnique({
-      where: { id },
-      include: { categoria: true, instituicao: true },
+      where: {
+        id,
+      },
+
+      include: {
+        categoria: true,
+        instituicao: true,
+      },
     });
 
     if (!event) {
@@ -74,7 +141,9 @@ export class EventsService {
     await this.findOne(id);
 
     return this.prisma.evento.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: dto,
     });
   }
@@ -83,9 +152,13 @@ export class EventsService {
     await this.findOne(id);
 
     await this.prisma.evento.delete({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
-    return { message: 'Evento removido com sucesso.' };
+    return {
+      message: 'Evento removido com sucesso.',
+    };
   }
 }
